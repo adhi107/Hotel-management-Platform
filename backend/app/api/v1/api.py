@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, tenants, menu, pos, kitchen, tables, inventory, recipes, crm, day_close, reports, ai, alerts, seed
+from app.api.v1 import auth, tenants, menu, pos, kitchen, tables, inventory, recipes, crm, day_close, reports, ai, alerts, seed, superadmin
 
 api_router = APIRouter()
 
@@ -17,3 +17,5 @@ api_router.include_router(reports.router)
 api_router.include_router(ai.router)
 api_router.include_router(alerts.router)
 api_router.include_router(seed.router)
+api_router.include_router(superadmin.router)
+

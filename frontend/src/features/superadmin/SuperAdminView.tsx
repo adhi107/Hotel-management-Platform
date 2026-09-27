@@ -1,46 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ShieldCheck, 
-  Building2, 
-  Users, 
-  Activity, 
-  Zap, 
-  CheckCircle2, 
-  Sliders, 
-  Plus, 
-  Search, 
-  Filter, 
-  Lock, 
-  Unlock, 
-  ExternalLink, 
-  X, 
-  Check, 
-  Sparkles, 
-  Store, 
-  ChefHat, 
-  Layers, 
-  Clock, 
-  QrCode, 
-  BookOpen, 
-  Scale, 
-  TrendingUp,
-  AlertTriangle,
-  RefreshCw,
-  CreditCard,
-  Server,
-  FileText,
-  DollarSign,
-  ArrowUpRight,
-  Database,
-  Cpu,
-  ChevronDown,
-  ToggleLeft,
-  ToggleRight
+  ShieldCheck, Building2, Users, Activity, Zap, CheckCircle2, Sliders, 
+  Plus, Search, Filter, Lock, Unlock, ExternalLink, X, Check, Sparkles, 
+  Store, ChefHat, Layers, Clock, QrCode, BookOpen, Scale, TrendingUp,
+  AlertTriangle, RefreshCw, CreditCard, Server, FileText, DollarSign,
+  ArrowUpRight, Database, Cpu, ChevronDown, ToggleLeft, ToggleRight,
+  Megaphone, Send, ShieldAlert, Download, Trash2, ArrowRight, Award,
+  CheckCircle, Globe, HardDrive, Terminal, Key, Shield
 } from 'lucide-react';
+import { 
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, 
+  Tooltip, CartesianGrid, Legend 
+} from 'recharts';
+import api from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { BusinessType, UiMode } from '../../types';
 import { SuperAdminSidebar, SuperAdminTab } from '../../components/SuperAdminSidebar';
 import { Pagination } from '../../components/Pagination';
+import { toCSV, getTodayLabel } from '../../utils/exportUtils';
 
 interface ManagedTenant {
   id: string;
@@ -68,7 +45,7 @@ interface ManagedTenant {
 }
 
 export const SuperAdminView: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, impersonateTenant } = useAuthStore();
   
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState<SuperAdminTab>('businesses');
@@ -76,17 +53,43 @@ export const SuperAdminView: React.FC = () => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterPlan, setFilterPlan] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   
   // Pagination State
   const [tenantPage, setTenantPage] = useState(1);
-  const [tenantPageSize, setTenantPageSize] = useState(5);
+  const [tenantPageSize, setTenantPageSize] = useState(6);
 
-  // Modal states
+  // Modals & Drawers
   const [selectedTenant, setSelectedTenant] = useState<ManagedTenant | null>(null);
   const [isProvisionModalOpen, setIsProvisionModalOpen] = useState(false);
+  const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Initial Platform Managed Businesses
+  // Global Broadcast State
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'critical' | 'release'>('info');
+  const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'enterprise' | 'pro'>('all');
+  const [broadcastsHistory, setBroadcastsHistory] = useState([
+    { id: 'bc-1', title: 'System Performance Upgrade', body: 'Database latency optimized by 40% across all cloud regions.', type: 'info', target: 'All Businesses', time: '2 hours ago', reach: 4 },
+    { id: 'bc-2', title: 'AI Upselling Engine Live', body: 'Smart menu recommendations are now available for Pro & Enterprise tiers.', type: 'release', target: 'Pro & Enterprise', time: 'Yesterday', reach: 3 },
+  ]);
+
+  // Global Maintenance Mode
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  // Provision New Business Form State
+  const [newBizName, setNewBizName] = useState('');
+  const [newBizType, setNewBizType] = useState<BusinessType>('Restaurant');
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [newPlan, setNewPlan] = useState<'Starter' | 'Professional' | 'Enterprise'>('Professional');
+  const [newUiMode, setNewUiMode] = useState<UiMode>('standard');
+  const [newBranchesCount, setNewBranchesCount] = useState(1);
+
+  // Platform Managed Businesses Data
   const [tenants, setTenants] = useState<ManagedTenant[]>([
     {
       id: 'tenant-001',
@@ -98,7 +101,7 @@ export const SuperAdminView: React.FC = () => {
       ui_mode: 'advanced',
       status: 'active',
       branches_count: 3,
-      monthly_revenue: '₹14,500',
+      monthly_revenue: '₹1,48,500',
       features: {
         quick_sale: true,
         pos: true,
@@ -109,1247 +112,1184 @@ export const SuperAdminView: React.FC = () => {
         recipes: true,
         ai_features: true,
         day_close: true,
-        multi_branch: true
+        multi_branch: true,
       }
     },
     {
       id: 'tenant-002',
-      name: 'FreshPress Juice & Quick Shakes',
-      business_type: 'Juice Center',
-      owner_name: 'Vikram Patel',
-      owner_email: 'vikram@freshpress.in',
-      plan: 'Starter',
-      ui_mode: 'simple',
-      status: 'active',
-      branches_count: 1,
-      monthly_revenue: '₹1,999',
-      features: {
-        quick_sale: true,
-        pos: false,
-        tables: false,
-        kitchen_display: false,
-        qr_ordering: true,
-        khata_credit: true,
-        recipes: false,
-        ai_features: false,
-        day_close: true,
-        multi_branch: false
-      }
-    },
-    {
-      id: 'tenant-003',
-      name: 'Chai & Bun Maska Street Hub',
-      business_type: 'Tea Shop',
-      owner_name: 'Karan Dave',
-      owner_email: 'karan@chaihub.com',
-      plan: 'Starter',
+      name: 'Chai & Co Express',
+      business_type: 'Cafe',
+      owner_name: 'Amit Verma',
+      owner_email: 'amit@chaico.in',
+      plan: 'Professional',
       ui_mode: 'simple',
       status: 'active',
       branches_count: 2,
-      monthly_revenue: '₹1,999',
+      monthly_revenue: '₹62,400',
       features: {
         quick_sale: true,
         pos: false,
         tables: false,
-        kitchen_display: false,
-        qr_ordering: false,
-        khata_credit: true,
-        recipes: false,
-        ai_features: false,
-        day_close: true,
-        multi_branch: false
-      }
-    },
-    {
-      id: 'tenant-004',
-      name: 'Artisan Sourdough & Patisserie',
-      business_type: 'Bakery',
-      owner_name: 'Sneha Roy',
-      owner_email: 'sneha@artisanbakes.com',
-      plan: 'Professional',
-      ui_mode: 'standard',
-      status: 'active',
-      branches_count: 1,
-      monthly_revenue: '₹4,999',
-      features: {
-        quick_sale: true,
-        pos: true,
-        tables: true,
         kitchen_display: true,
-        qr_ordering: false,
+        qr_ordering: true,
         khata_credit: true,
         recipes: true,
         ai_features: true,
         day_close: true,
-        multi_branch: false
+        multi_branch: true,
       }
     },
     {
-      id: 'tenant-005',
-      name: 'CloudBowl Virtual Kitchen Network',
+      id: 'tenant-003',
+      name: 'Spice Garden Cloud Kitchen',
       business_type: 'Cloud Kitchen',
-      owner_name: 'Amit Verma',
-      owner_email: 'amit@cloudbowl.io',
-      plan: 'Enterprise',
-      ui_mode: 'advanced',
+      owner_name: 'Priya Nair',
+      owner_email: 'priya@spicegarden.com',
+      plan: 'Starter',
+      ui_mode: 'standard',
       status: 'active',
-      branches_count: 5,
-      monthly_revenue: '₹22,000',
+      branches_count: 1,
+      monthly_revenue: '₹34,800',
       features: {
         quick_sale: true,
-        pos: true,
+        pos: false,
         tables: false,
         kitchen_display: true,
         qr_ordering: true,
         khata_credit: false,
         recipes: true,
+        ai_features: false,
+        day_close: true,
+        multi_branch: false,
+      }
+    },
+    {
+      id: 'tenant-004',
+      name: 'The Vintage Bakery & Desserts',
+      business_type: 'Bakery',
+      owner_name: 'Sunil Mehta',
+      owner_email: 'sunil@vintagebakery.com',
+      plan: 'Professional',
+      ui_mode: 'standard',
+      status: 'active',
+      branches_count: 1,
+      monthly_revenue: '₹51,200',
+      features: {
+        quick_sale: true,
+        pos: true,
+        tables: false,
+        kitchen_display: true,
+        qr_ordering: true,
+        khata_credit: true,
+        recipes: true,
         ai_features: true,
         day_close: true,
-        multi_branch: true
+        multi_branch: false,
       }
     }
   ]);
 
-  // Provisioning Form State
-  const [newTenant, setNewTenant] = useState({
-    name: '',
-    business_type: 'Cafe' as BusinessType,
-    owner_name: '',
-    owner_email: '',
-    plan: 'Professional' as 'Starter' | 'Professional' | 'Enterprise',
-    ui_mode: 'standard' as UiMode
-  });
+  // Telemetry KPIs
+  const platformStats = useMemo(() => {
+    const totalTenants = tenants.length;
+    const activeTenants = tenants.filter(t => t.status === 'active').length;
+    const totalBranches = tenants.reduce((s, t) => s + t.branches_count, 0);
+    const mrr = tenants.reduce((s, t) => {
+      if (t.plan === 'Enterprise') return s + 5999;
+      if (t.plan === 'Professional') return s + 2499;
+      return s + 999;
+    }, 0);
+    return { totalTenants, activeTenants, totalBranches, mrr, arr: mrr * 12 };
+  }, [tenants]);
 
-  const showToast = (msg: string) => {
-    setSuccessToast(msg);
-    setTimeout(() => setSuccessToast(null), 3500);
-  };
+  // Toast auto-clear
+  useEffect(() => {
+    if (successToast) {
+      const timer = setTimeout(() => setSuccessToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successToast]);
 
-  // Filtered list
-  const filteredTenants = tenants.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          t.owner_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.owner_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'all' || t.business_type === filterType;
-    return matchesSearch && matchesType;
-  });
+  // Filtered Businesses
+  const filteredTenants = useMemo(() => {
+    return tenants.filter(t => {
+      const matchesSearch = 
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.owner_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.owner_email.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesType = filterType === 'all' || t.business_type === filterType;
+      const matchesPlan = filterPlan === 'all' || t.plan === filterPlan;
+      const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
+
+      return matchesSearch && matchesType && matchesPlan && matchesStatus;
+    });
+  }, [tenants, searchQuery, filterType, filterPlan, filterStatus]);
 
   const paginatedTenants = filteredTenants.slice((tenantPage - 1) * tenantPageSize, tenantPage * tenantPageSize);
 
-  // Toggle Feature Control for a business
-  const handleFeatureToggle = (featureKey: keyof ManagedTenant['features']) => {
-    if (!selectedTenant) return;
-    const updated = {
-      ...selectedTenant,
-      features: {
-        ...selectedTenant.features,
-        [featureKey]: !selectedTenant.features[featureKey]
-      }
-    };
-    setSelectedTenant(updated);
-  };
-
-  // Save updated controls
-  const handleSaveTenantControls = () => {
-    if (!selectedTenant) return;
-    setTenants(prev => prev.map(t => t.id === selectedTenant.id ? selectedTenant : t));
-    showToast(`Updated permissions & controls for "${selectedTenant.name}"`);
-    setSelectedTenant(null);
-  };
-
-  // Toggle Active/Suspended status
-  const handleToggleStatus = (id: string) => {
+  // Handlers
+  const handleToggleStatus = (tenantId: string) => {
     setTenants(prev => prev.map(t => {
-      if (t.id === id) {
+      if (t.id === tenantId) {
         const nextStatus = t.status === 'active' ? 'suspended' : 'active';
-        showToast(`${t.name} is now ${nextStatus.toUpperCase()}`);
+        setSuccessToast(`${t.name} is now ${nextStatus.toUpperCase()}`);
         return { ...t, status: nextStatus };
       }
       return t;
     }));
   };
 
-  // Create new tenant
-  const handleProvisionTenant = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTenant.name || !newTenant.owner_email) return;
+  const handleToggleFeature = (tenantId: string, featureKey: keyof ManagedTenant['features']) => {
+    setTenants(prev => prev.map(t => {
+      if (t.id === tenantId) {
+        const updatedFeatures = { ...t.features, [featureKey]: !t.features[featureKey] };
+        return { ...t, features: updatedFeatures };
+      }
+      return t;
+    }));
+    setSuccessToast('Feature flag updated in real-time');
+  };
 
-    const created: ManagedTenant = {
+  const handleUpdatePlan = (tenantId: string, newPlan: 'Starter' | 'Professional' | 'Enterprise') => {
+    setTenants(prev => prev.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, plan: newPlan };
+      }
+      return t;
+    }));
+    setIsPlanModalOpen(false);
+    setSuccessToast(`Plan upgraded to ${newPlan} successfully`);
+  };
+
+  const handleImpersonateLogin = (tenant: ManagedTenant) => {
+    setSuccessToast(`Logging in as ${tenant.owner_name} (${tenant.name})...`);
+    impersonateTenant({
+      id: `usr-${tenant.id}`,
+      full_name: tenant.owner_name,
+      email: tenant.owner_email,
+      role: 'owner',
+      tenant_id: tenant.id
+    }, {
+      id: tenant.id,
+      name: tenant.name,
+      business_type: tenant.business_type,
+      business_size: 'small',
+      ui_mode: tenant.ui_mode || 'standard',
+      plan: tenant.plan,
+      features: tenant.features as any,
+      config: {
+        restaurant_name: tenant.name,
+        currency: 'INR',
+        currency_symbol: '₹',
+        decimal_precision: 2,
+        tax_percent: 5,
+        primary_color: '#2563EB',
+        secondary_color: '#334155',
+        accent_color: '#16A34A',
+      },
+    });
+  };
+
+  const handleProvisionBusiness = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBizName.trim() || !newOwnerEmail.trim()) return;
+
+    const newTenant: ManagedTenant = {
       id: `tenant-00${tenants.length + 1}`,
-      name: newTenant.name,
-      business_type: newTenant.business_type,
-      owner_name: newTenant.owner_name || 'Admin',
-      owner_email: newTenant.owner_email,
-      plan: newTenant.plan,
-      ui_mode: newTenant.ui_mode,
+      name: newBizName,
+      business_type: newBizType,
+      owner_name: newOwnerName || 'Business Owner',
+      owner_email: newOwnerEmail,
+      plan: newPlan,
+      ui_mode: newUiMode,
       status: 'active',
-      branches_count: 1,
-      monthly_revenue: newTenant.plan === 'Enterprise' ? '₹14,999' : (newTenant.plan === 'Professional' ? '₹4,999' : '₹1,999'),
+      branches_count: newBranchesCount,
+      monthly_revenue: '₹0',
       features: {
         quick_sale: true,
-        pos: newTenant.ui_mode !== 'simple',
-        tables: newTenant.business_type === 'Restaurant' || newTenant.business_type === 'Cafe',
+        pos: newPlan !== 'Starter',
+        tables: newPlan === 'Enterprise' || newBizType === 'Restaurant',
         kitchen_display: true,
         qr_ordering: true,
         khata_credit: true,
-        recipes: newTenant.plan !== 'Starter',
-        ai_features: newTenant.plan === 'Enterprise',
+        recipes: true,
+        ai_features: newPlan === 'Enterprise',
         day_close: true,
-        multi_branch: newTenant.plan === 'Enterprise'
+        multi_branch: newBranchesCount > 1,
       }
     };
 
-    setTenants([created, ...tenants]);
+    setTenants([newTenant, ...tenants]);
     setIsProvisionModalOpen(false);
-    setNewTenant({
-      name: '',
-      business_type: 'Cafe',
-      owner_name: '',
-      owner_email: '',
-      plan: 'Professional',
-      ui_mode: 'standard'
-    });
-    showToast(`Successfully provisioned "${created.name}" and created Admin credentials!`);
+    setSuccessToast(`🎉 ${newBizName} successfully provisioned & ready for onboarding!`);
+    
+    // Reset Form
+    setNewBizName('');
+    setNewOwnerName('');
+    setNewOwnerEmail('');
+  };
+
+  const handleSendBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return;
+
+    const newBc = {
+      id: `bc-${Date.now()}`,
+      title: broadcastTitle,
+      body: broadcastBody,
+      type: broadcastType,
+      target: broadcastTarget === 'all' ? 'All Businesses' : broadcastTarget === 'enterprise' ? 'Enterprise Only' : 'Pro & Enterprise',
+      time: 'Just now',
+      reach: broadcastTarget === 'all' ? tenants.length : 2
+    };
+
+    setBroadcastsHistory([newBc, ...broadcastsHistory]);
+    setBroadcastTitle('');
+    setBroadcastBody('');
+    setSuccessToast('📢 Announcement broadcasted live to all restaurant dashboards!');
+  };
+
+  const handleExportDirectory = () => {
+    const data = tenants.map(t => ({
+      'Business ID': t.id,
+      'Business Name': t.name,
+      'Type': t.business_type,
+      'Owner': t.owner_name,
+      'Email': t.owner_email,
+      'Plan': t.plan,
+      'Branches': t.branches_count,
+      'Monthly Revenue': t.monthly_revenue,
+      'Status': t.status.toUpperCase(),
+    }));
+    toCSV(data, `platform_tenants_directory_${getTodayLabel()}`);
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-aura-bg text-aura-text font-sans">
+    <div className="flex h-full w-full bg-white text-[var(--text-primary)] font-sans select-none overflow-hidden">
       
-      {/* Dedicated Super Admin Sidebar */}
+      {/* ── Fixed Super Admin Sidebar ───────────────────────────────────── */}
       <SuperAdminSidebar 
         activeTab={activeTab} 
         onTabChange={setActiveTab} 
         tenantsCount={tenants.length} 
       />
 
-      {/* Main Workspace for Super Admin */}
-      <div className="flex-1 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* ── Main Workspace ──────────────────────────────────────────────── */}
+      <div className="flex-1 h-full overflow-y-auto bg-white p-4 md:p-6 space-y-6">
         
         {/* Toast Notification */}
         {successToast && (
-          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 font-semibold text-xs shadow-2xl flex items-center gap-2.5 animate-in slide-in-from-bottom-5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
+          <div className="fixed top-16 right-6 z-50 p-3.5 px-4 rounded-xl bg-[var(--color-primary)] text-white shadow-xl flex items-center gap-2.5 text-xs font-bold animate-slide-in-up">
+            <CheckCircle2 className="w-4 h-4 text-emerald-300" />
             <span>{successToast}</span>
           </div>
         )}
 
-        {/* TAB 1: BUSINESSES & TENANTS DIRECTORY */}
-        {activeTab === 'businesses' && (
-          <div className="space-y-6">
-            {/* Header & Main Actions */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-aura-border">
+        {/* ── Top Super Admin Header & Global Actions ─────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)] flex items-center justify-center font-black shadow-sm">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs">
-                    <Building2 className="w-4 h-4" />
-                  </span>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-aura-text tracking-tight">
-                    Tenant Businesses Directory
-                  </h1>
-                  <span className="badge-neutral text-[10px] font-bold">Platform Governance</span>
-                </div>
-                <p className="text-xs text-aura-muted">
-                  Provision new food businesses, manage permissions, and delegate controls to tenant admins.
+                <h1 className="text-xl md:text-2xl font-black text-[var(--text-primary)] tracking-tight flex items-center gap-2">
+                  <span>Super Admin Platform Control Center</span>
+                </h1>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Full multi-tenant governance, live feature controls, revenue telemetry, and system maintenance.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsProvisionModalOpen(true)}
+              className="btn-primary flex items-center gap-1.5 shadow-md"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Provision New Business</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Global Platform Stats Cards ─────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--text-muted)]">Active Businesses</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <Building2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--text-primary)]">{platformStats.activeTenants}</span>
+              <span className="text-[11px] font-bold text-emerald-600">100% Active</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] pt-1 border-t border-[var(--border-subtle)]">
+              {platformStats.totalBranches} total branches across all cities
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--text-muted)]">Platform Monthly MRR</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <DollarSign className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--text-primary)]">₹{platformStats.mrr.toLocaleString('en-IN')}</span>
+              <span className="text-[11px] font-bold text-emerald-600">+18% MoM</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] pt-1 border-t border-[var(--border-subtle)]">
+              ARR Run Rate: ₹{(platformStats.arr).toLocaleString('en-IN')}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--text-muted)]">Total Orders Handled (GMV)</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--text-primary)]">₹2,96,900</span>
+              <span className="text-[11px] font-bold text-blue-600">3,850+ orders</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] pt-1 border-t border-[var(--border-subtle)]">
+              Zero transaction downtime
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--text-muted)]">Cluster Uptime & Latency</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <Activity className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-emerald-600">99.99%</span>
+              <span className="text-[11px] font-bold text-[var(--text-muted)]">14ms API</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] pt-1 border-t border-[var(--border-subtle)]">
+              Redis cache hit rate: 98.4%
+            </p>
+          </div>
+        </div>
+
+        {/* ── TAB 1: ALL BUSINESSES DIRECTORY ─────────────────────────────── */}
+        {activeTab === 'businesses' && (
+          <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[var(--color-primary)]" />
+                  <span>Tenant Businesses Directory ({filteredTenants.length})</span>
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Live management, feature toggle switchboard, plan upgrades, and direct portal access.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsProvisionModalOpen(true)}
-                  className="h-10 px-4 rounded-xl bg-zinc-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 text-xs font-bold shadow-md flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  onClick={handleExportDirectory}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Provision New Business</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
                 </button>
               </div>
             </div>
 
-            {/* Quick Summary KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-aura-card border border-aura-border shadow-sm space-y-1">
-                <div className="flex items-center justify-between text-aura-muted text-xs font-semibold">
-                  <span>Managed Businesses</span>
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div className="text-2xl font-extrabold text-aura-text">{tenants.length}</div>
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {tenants.filter(t => t.status === 'active').length} Active • 0 Suspended
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-aura-card border border-aura-border shadow-sm space-y-1">
-                <div className="flex items-center justify-between text-aura-muted text-xs font-semibold">
-                  <span>Global Monthly MRR</span>
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <div className="text-2xl font-extrabold text-aura-text">₹45,496</div>
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  ↑ 18.5% Growth This Month
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-aura-card border border-aura-border shadow-sm space-y-1">
-                <div className="flex items-center justify-between text-aura-muted text-xs font-semibold">
-                  <span>Active POS Outlets</span>
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div className="text-2xl font-extrabold text-aura-text">
-                  {tenants.reduce((sum, t) => sum + t.branches_count, 0)} Branches
-                </div>
-                <p className="text-[11px] text-aura-muted">Across 5 City Hubs</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-aura-card border border-aura-border shadow-sm space-y-1">
-                <div className="flex items-center justify-between text-aura-muted text-xs font-semibold">
-                  <span>Platform Health SLA</span>
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div className="text-2xl font-extrabold text-aura-text">99.99%</div>
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  All Microservices Operational
-                </p>
-              </div>
-            </div>
-
-            {/* Search & Filter Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-aura-card border border-aura-border">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-aura-muted absolute left-3 top-2.5" />
+            {/* Filter Toolbar */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="relative md:col-span-2">
+                <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
+                  placeholder="Search by business name, owner, or email..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setTenantPage(1);
-                  }}
-                  placeholder="Search businesses by name, owner or email..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-transparent text-aura-text placeholder:text-aura-muted focus:outline-none"
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="input-base pl-9 text-xs"
                 />
               </div>
 
-              <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-aura-border pt-2 sm:pt-0 sm:pl-3">
-                <Filter className="w-3.5 h-3.5 text-aura-muted shrink-0" />
+              <div>
                 <select
                   value={filterType}
-                  onChange={(e) => {
-                    setFilterType(e.target.value);
-                    setTenantPage(1);
-                  }}
-                  className="bg-transparent text-xs text-aura-text font-semibold focus:outline-none cursor-pointer"
+                  onChange={e => setFilterType(e.target.value)}
+                  className="input-base text-xs font-semibold"
                 >
                   <option value="all">All Business Types</option>
-                  <option value="Restaurant">Restaurants & Bistros</option>
-                  <option value="Cafe">Cafes & Bakeries</option>
-                  <option value="Juice Center">Juice Centers</option>
-                  <option value="Tea Shop">Tea & Coffee Shops</option>
-                  <option value="Cloud Kitchen">Cloud Kitchens</option>
+                  <option value="Restaurant">Restaurant</option>
+                  <option value="Cafe">Cafe</option>
+                  <option value="Cloud Kitchen">Cloud Kitchen</option>
+                  <option value="Bakery">Bakery</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={filterPlan}
+                  onChange={e => setFilterPlan(e.target.value)}
+                  className="input-base text-xs font-semibold"
+                >
+                  <option value="all">All Plans</option>
+                  <option value="Starter">Starter Plan</option>
+                  <option value="Professional">Professional Plan</option>
+                  <option value="Enterprise">Enterprise Plan</option>
                 </select>
               </div>
             </div>
 
-            {/* Master Business Roster Table */}
-            <div className="rounded-2xl border border-aura-border bg-aura-card overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-aura-border bg-aura-dark/40 text-aura-muted uppercase text-[10px] tracking-wider">
-                      <th className="py-3 px-4 font-bold">Business Name & Category</th>
-                      <th className="py-3 px-4 font-bold">Admin / Owner Account</th>
-                      <th className="py-3 px-4 font-bold">UI Complexity</th>
-                      <th className="py-3 px-4 font-bold">Plan & Tier</th>
-                      <th className="py-3 px-4 font-bold">Enabled Capabilities</th>
-                      <th className="py-3 px-4 font-bold">Status</th>
-                      <th className="py-3 px-4 font-bold text-right">Super Admin Control</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-aura-border">
-                    {paginatedTenants.length > 0 ? (
-                      paginatedTenants.map((t) => (
-                        <tr key={t.id} className="hover:bg-aura-dark/20 transition-colors">
-                          
-                          {/* Name & Type */}
-                          <td className="py-3.5 px-4 font-semibold text-aura-text">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-aura-border flex items-center justify-center font-bold text-xs text-aura-text shrink-0">
-                                {t.name.charAt(0)}
-                              </div>
-                              <div>
-                                <div className="font-bold text-aura-text">{t.name}</div>
-                                <div className="text-[11px] text-aura-muted font-medium">{t.business_type} • {t.branches_count} {t.branches_count > 1 ? 'Outlets' : 'Outlet'}</div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Owner */}
-                          <td className="py-3.5 px-4 text-aura-text">
-                            <div className="font-semibold">{t.owner_name}</div>
-                            <div className="text-[11px] text-aura-muted font-mono">{t.owner_email}</div>
-                          </td>
-
-                          {/* UI Complexity */}
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                              t.ui_mode === 'simple' 
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
-                                : (t.ui_mode === 'standard' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20')
-                            }`}>
-                              {t.ui_mode}
+            {/* Directory Table */}
+            <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAFC] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-bold">
+                  <tr>
+                    <th className="py-3 px-4">Business Name</th>
+                    <th className="py-3 px-4">Owner & Email</th>
+                    <th className="py-3 px-4">Plan & UI Mode</th>
+                    <th className="py-3 px-4 text-center">Branches</th>
+                    <th className="py-3 px-4 text-right">Monthly Sales</th>
+                    <th className="py-3 px-4 text-center">Account Status</th>
+                    <th className="py-3 px-4 text-right">Quick SuperAdmin Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)] bg-white">
+                  {paginatedTenants.map((t) => (
+                    <tr key={t.id} className="hover:bg-[#F8FAFC] transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                            {t.name.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-bold text-[var(--text-primary)] block text-xs">
+                              {t.name}
                             </span>
-                          </td>
+                            <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                              ID: {t.id} • {t.business_type}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
 
-                          {/* Plan */}
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-aura-text">{t.plan}</div>
-                            <div className="text-[10px] text-aura-muted font-semibold">{t.monthly_revenue} / mo</div>
-                          </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-[var(--text-primary)] block">{t.owner_name}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{t.owner_email}</span>
+                      </td>
 
-                          {/* Feature Pills */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
-                              {t.features.quick_sale && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  POS
-                                </span>
-                              )}
-                              {t.features.tables && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  Tables
-                                </span>
-                              )}
-                              {t.features.kitchen_display && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  KDS
-                                </span>
-                              )}
-                              {t.features.khata_credit && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  Khata
-                                </span>
-                              )}
-                              {t.features.recipes && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  BOM
-                                </span>
-                              )}
-                              {t.features.ai_features && (
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-aura-text">
-                                  AI
-                                </span>
-                              )}
-                            </div>
-                          </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            t.plan === 'Enterprise' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' :
+                            t.plan === 'Professional' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                          }`}>
+                            {t.plan}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">
+                            {t.ui_mode}
+                          </span>
+                        </div>
+                      </td>
 
-                          {/* Status Toggle */}
-                          <td className="py-3.5 px-4">
-                            <button
-                              onClick={() => handleToggleStatus(t.id)}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                                t.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              }`}
-                              title="Click to toggle Active / Suspended status"
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${t.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                              <span className="capitalize">{t.status}</span>
-                            </button>
-                          </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-[var(--text-primary)]">
+                        {t.branches_count}
+                      </td>
 
-                          {/* Actions */}
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => setSelectedTenant(JSON.parse(JSON.stringify(t)))}
-                              className="h-8 px-3 rounded-lg bg-zinc-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
-                            >
-                              <Sliders className="w-3.5 h-3.5" />
-                              <span>Manage Controls</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-aura-muted text-xs">
-                          No businesses found matching your search.
+                      <td className="py-3.5 px-4 text-right font-black text-emerald-600">
+                        {t.monthly_revenue}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          onClick={() => handleToggleStatus(t.id)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            t.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                          }`}
+                        >
+                          {t.status === 'active' ? '● Active' : '✕ Suspended'}
+                        </button>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right space-x-1.5">
+                        {/* Impersonate Access Button */}
+                        <button
+                          onClick={() => handleImpersonateLogin(t)}
+                          title="Instant Portal Login"
+                          className="px-2.5 py-1 rounded-lg bg-[var(--color-primary)] text-white hover:bg-blue-700 font-bold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Login</span>
+                        </button>
+
+                        {/* Feature Controls Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedTenant(t);
+                            setIsFeatureModalOpen(true);
+                          }}
+                          title="Configure Features"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1 border border-[var(--border-subtle)]"
+                        >
+                          <Sliders className="w-3 h-3 text-slate-600" />
+                          <span>Features</span>
+                        </button>
+
+                        {/* Plan Changer Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedTenant(t);
+                            setIsPlanModalOpen(true);
+                          }}
+                          title="Upgrade Plan"
+                          className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1 border border-purple-200"
+                        >
+                          <CreditCard className="w-3 h-3 text-purple-600" />
+                          <span>Plan</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {filteredTenants.length > tenantPageSize && (
+              <div className="pt-2">
+                <Pagination
+                  currentPage={tenantPage}
+                  totalItems={filteredTenants.length}
+                  pageSize={tenantPageSize}
+                  onPageChange={setTenantPage}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 2: FEATURE SWITCHBOARD (LIVE GOVERNANCE) ────────────────── */}
+        {activeTab === 'permissions' && (
+          <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+            <div className="pb-3 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-[var(--color-primary)]" />
+                <span>Live Feature Switchboard & Module Permissions</span>
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                Turn specific platform features ON or OFF for any restaurant with instant real-time synchronization.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAFC] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-bold">
+                  <tr>
+                    <th className="py-3 px-4">Business</th>
+                    <th className="py-3 px-2 text-center">Quick Sale</th>
+                    <th className="py-3 px-2 text-center">Table POS</th>
+                    <th className="py-3 px-2 text-center">Kitchen KDS</th>
+                    <th className="py-3 px-2 text-center">QR Ordering</th>
+                    <th className="py-3 px-2 text-center">Khata Credit</th>
+                    <th className="py-3 px-2 text-center">Recipes</th>
+                    <th className="py-3 px-2 text-center">AI Copilot</th>
+                    <th className="py-3 px-2 text-center">Day Close</th>
+                    <th className="py-3 px-2 text-center">Multi-Branch</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)] bg-white">
+                  {tenants.map(t => (
+                    <tr key={t.id} className="hover:bg-[#F8FAFC]">
+                      <td className="py-3 px-4 font-bold text-[var(--text-primary)]">
+                        {t.name}
+                        <span className="block text-[10px] text-[var(--text-muted)] font-normal">{t.plan} Plan</span>
+                      </td>
+                      {(Object.keys(t.features) as Array<keyof ManagedTenant['features']>).map((fKey) => (
+                        <td key={fKey} className="py-3 px-2 text-center">
+                          <button
+                            onClick={() => handleToggleFeature(t.id, fKey)}
+                            className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer ${
+                              t.features[fKey]
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                            }`}
+                          >
+                            {t.features[fKey] ? <Check className="w-4 h-4 font-black" /> : <X className="w-4 h-4" />}
+                          </button>
                         </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 3: GLOBAL BROADCAST ANNOUNCEMENTS ───────────────────────── */}
+        {activeTab === 'broadcast' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+              <div className="pb-3 border-b border-[var(--border-subtle)]">
+                <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[var(--color-primary)]" />
+                  <span>Send Live Platform Broadcast Announcement</span>
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Push urgent alerts, feature updates, or maintenance notices directly to all tenant cockpits.
+                </p>
               </div>
 
-              {/* Pagination */}
-              {filteredTenants.length > 0 && (
-                <div className="p-4 border-t border-aura-border bg-aura-card">
-                  <Pagination
-                    currentPage={tenantPage}
-                    totalItems={filteredTenants.length}
-                    pageSize={tenantPageSize}
-                    onPageChange={setTenantPage}
-                    onPageSizeChange={(sz) => {
-                      setTenantPageSize(sz);
-                      setTenantPage(1);
-                    }}
-                    pageSizeOptions={[5, 10, 20]}
+              <form onSubmit={handleSendBroadcast} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                    Announcement Headline
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., Scheduled Maintenance Window Tonight at 2:00 AM IST"
+                    value={broadcastTitle}
+                    onChange={e => setBroadcastTitle(e.target.value)}
+                    className="input-base text-xs"
                   />
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                    Message Details / Instructions
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="Provide details for restaurant owners and cashiers..."
+                    value={broadcastBody}
+                    onChange={e => setBroadcastBody(e.target.value)}
+                    className="input-base text-xs leading-relaxed"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                      Alert Priority Level
+                    </label>
+                    <select
+                      value={broadcastType}
+                      onChange={e => setBroadcastType(e.target.value as any)}
+                      className="input-base text-xs font-semibold"
+                    >
+                      <option value="info">🔵 Information Notice</option>
+                      <option value="release">🟢 New Feature Launch</option>
+                      <option value="warning">🟡 Scheduled Maintenance</option>
+                      <option value="critical">🔴 Critical Security Alert</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                      Target Audience
+                    </label>
+                    <select
+                      value={broadcastTarget}
+                      onChange={e => setBroadcastTarget(e.target.value as any)}
+                      className="input-base text-xs font-semibold"
+                    >
+                      <option value="all">All Connected Restaurants</option>
+                      <option value="enterprise">Enterprise Tier Only</option>
+                      <option value="pro">Pro & Enterprise Tiers</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary w-full py-2.5 font-bold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Broadcast to Live Dashboards</span>
+                </button>
+              </form>
             </div>
-          </div>
-        )}
 
-        {/* TAB 2: ADMIN CONTROLS & RBAC MATRIX */}
-        {activeTab === 'permissions' && (
-          <div className="space-y-6">
-            <div className="pb-4 border-b border-aura-border">
-              <h2 className="text-xl font-bold text-aura-text flex items-center gap-2">
-                <Sliders className="w-5 h-5" />
-                <span>Global Feature Gate & Admin RBAC Delegation</span>
-              </h2>
-              <p className="text-xs text-aura-muted mt-1">
-                Configure which capabilities are provisioned across business complexity tiers.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-aura-text">Simple Mode (Micro Stalls)</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                    2-Tap POS
-                  </span>
-                </div>
-                <p className="text-xs text-aura-muted leading-relaxed">
-                  Ideal for Chai Stalls, Juice Centers, Food Carts, and Snack Counters. Strips away table maps and multi-station routing.
-                </p>
-                <div className="space-y-2 pt-2 border-t border-aura-border text-xs">
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Quick Sale POS</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
+            {/* Broadcast History */}
+            <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-3">
+              <h4 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
+                Recent Broadcasts Sent
+              </h4>
+              <div className="space-y-2.5">
+                {broadcastsHistory.map(bc => (
+                  <div key={bc.id} className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[#F8FAFC] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text-primary)]">{bc.title}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] font-semibold">{bc.time}</span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">{bc.body}</p>
+                    <div className="flex items-center justify-between pt-1 text-[10px] text-[var(--text-muted)]">
+                      <span>Target: {bc.target}</span>
+                      <span className="font-bold text-emerald-600">✓ Delivered ({bc.reach})</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Indian Khata Ledger</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-muted">
-                    <span>Table Floor Plan</span>
-                    <span className="text-[10px] uppercase font-bold text-rose-500">Disabled</span>
-                  </div>
-                  <div className="flex items-center justify-between text-aura-muted">
-                    <span>Multi-Station KDS</span>
-                    <span className="text-[10px] uppercase font-bold text-rose-500">Disabled</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-aura-text">Standard Mode (Cafe & QSR)</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                    Dine-In & KDS
-                  </span>
-                </div>
-                <p className="text-xs text-aura-muted leading-relaxed">
-                  Engineered for Cafes, Bakeries, Pizzerias, and Fast Casual Diners with table management and kitchen screens.
-                </p>
-                <div className="space-y-2 pt-2 border-t border-aura-border text-xs">
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Floor Plan & Table POS</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Single-Station KDS</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Recipe Inventory Costing</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>EOD Day Close Reconciliation</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-aura-text">Advanced Mode (Chains)</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400">
-                    Full Enterprise
-                  </span>
-                </div>
-                <p className="text-xs text-aura-muted leading-relaxed">
-                  Full multi-branch synchronization, multi-station kitchen routing, automated BOM deduction, and AI forecasting.
-                </p>
-                <div className="space-y-2 pt-2 border-t border-aura-border text-xs">
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Multi-Station KDS Bump</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Central Multi-Branch Sync</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>AI Operations Copilot</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-aura-text">
-                    <span>Role-Based Permissions</span>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: SAAS SUBSCRIPTION PLANS */}
+        {/* ── TAB 4: PLANS & PRICING TIER BUILDER ─────────────────────────── */}
         {activeTab === 'subscriptions' && (
           <div className="space-y-6">
-            <div className="pb-4 border-b border-aura-border">
-              <h2 className="text-xl font-bold text-aura-text flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                <span>SaaS Subscription Plans & Quotas</span>
-              </h2>
-              <p className="text-xs text-aura-muted mt-1">
-                Manage commercial tiers, pricing, and branch allowances.
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              <div className="p-6 rounded-3xl bg-aura-card border border-aura-border space-y-4">
+              {/* Starter Plan */}
+              <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4 relative">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black text-aura-text">Starter Plan</h3>
-                  <span className="badge-neutral text-xs font-bold">Micro Vendors</span>
+                  <h4 className="text-sm font-black text-[var(--text-primary)]">Starter Tier</h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">Small Cafes</span>
                 </div>
-                <div className="text-3xl font-black text-aura-text">
-                  ₹1,999 <span className="text-xs font-normal text-aura-muted">/ month</span>
+                <div>
+                  <span className="text-3xl font-black text-[var(--text-primary)]">₹999</span>
+                  <span className="text-xs text-[var(--text-muted)] font-medium"> / month</span>
                 </div>
-                <p className="text-xs text-aura-muted">Single-counter quick sales, UPI QR codes, and Khata credit ledger.</p>
-                <ul className="space-y-2 text-xs text-aura-text pt-4 border-t border-aura-border">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>Up to 2 Outlets / Carts</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>2-Tap Quick Sale POS</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>Offline IndexedDB Resilience</span>
-                  </li>
+                <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> 1 Branch & 2 Staff Logins</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Fast POS & Order Receipts</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Basic Daily Sales Reports</li>
+                  <li className="flex items-center gap-2 text-[var(--text-muted)]"><X className="w-3.5 h-3.5 text-slate-400" /> No AI Copilot</li>
                 </ul>
               </div>
 
-              <div className="p-6 rounded-3xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 border border-zinc-900 dark:border-white shadow-xl space-y-4">
+              {/* Pro Plan */}
+              <div className="p-5 rounded-2xl bg-white border-2 border-[var(--color-primary)] shadow-md space-y-4 relative">
+                <div className="absolute -top-3 right-4 bg-[var(--color-primary)] text-white text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full shadow-xs">
+                  Most Popular
+                </div>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black">Professional</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-white/20 dark:bg-zinc-900/20 text-[10px] font-bold uppercase">
-                    Most Popular
-                  </span>
+                  <h4 className="text-sm font-black text-[var(--text-primary)]">Professional Tier</h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">Restaurants</span>
                 </div>
-                <div className="text-3xl font-black">
-                  ₹4,999 <span className="text-xs font-normal opacity-75">/ month</span>
+                <div>
+                  <span className="text-3xl font-black text-[var(--text-primary)]">₹2,499</span>
+                  <span className="text-xs text-[var(--text-muted)] font-medium"> / month</span>
                 </div>
-                <p className="text-xs opacity-80">Full table management, kitchen display, and automated recipe costing.</p>
-                <ul className="space-y-2 text-xs pt-4 border-t border-white/20 dark:border-zinc-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Up to 5 Dine-in Branches</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Table Floor Plan + KDS Station</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Recipe Costing & Stock BOM</span>
-                  </li>
+                <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Up to 3 Branches & 10 Staff</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Live Kitchen Screen (KDS) & Floor Map</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Recipe Food Costing & Inventory</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Day-close cash register audit</li>
                 </ul>
               </div>
 
-              <div className="p-6 rounded-3xl bg-aura-card border border-aura-border space-y-4">
+              {/* Enterprise Plan */}
+              <div className="p-5 rounded-2xl bg-white border border-purple-200 shadow-xs space-y-4 relative">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black text-aura-text">Enterprise Tier</h3>
-                  <span className="badge-neutral text-xs font-bold">Multi-Chain</span>
+                  <h4 className="text-sm font-black text-purple-700">Enterprise Tier</h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">Chains & Franchises</span>
                 </div>
-                <div className="text-3xl font-black text-aura-text">
-                  ₹14,999 <span className="text-xs font-normal text-aura-muted">/ month</span>
+                <div>
+                  <span className="text-3xl font-black text-[var(--text-primary)]">₹5,999</span>
+                  <span className="text-xs text-[var(--text-muted)] font-medium"> / month</span>
                 </div>
-                <p className="text-xs text-aura-muted">Cloud kitchen networks, restaurant chains, and centralized procurement.</p>
-                <ul className="space-y-2 text-xs text-aura-text pt-4 border-t border-aura-border">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>Unlimited Outlets & Hubs</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>Multi-Station KDS Routing</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>AI Operations Copilot</span>
-                  </li>
+                <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Unlimited Branches & Unlimited Staff</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> AI Business Growth Copilot & Insights</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> Customer Khata Credit Book & WhatsApp</li>
+                  <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-600" /> 24/7 Priority SuperAdmin Support</li>
                 </ul>
               </div>
-
             </div>
           </div>
         )}
 
-        {/* TAB 4: GLOBAL PLATFORM GMV & METRICS */}
+        {/* ── TAB 5: PLATFORM TELEMETRY & REVENUE TRENDS ───────────────────── */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="pb-4 border-b border-aura-border">
-              <h2 className="text-xl font-bold text-aura-text flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                <span>Global Platform GMV & Order Velocity</span>
-              </h2>
-              <p className="text-xs text-aura-muted mt-1">
-                Real-time aggregated transaction volume across all registered hospitality tenants.
+          <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+            <div className="pb-3 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[var(--color-primary)]" />
+                <span>Multi-Tenant Platform Revenue & Growth Curve</span>
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                Combined Gross Merchandise Value (GMV) and SaaS subscription revenue across all hotel chains.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-1">
-                <div className="text-xs font-semibold text-aura-muted">Platform GMV Processed</div>
-                <div className="text-3xl font-black text-aura-text">₹48,92,450</div>
-                <p className="text-[11px] text-emerald-600 font-semibold">↑ 24.8% vs last month</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-1">
-                <div className="text-xs font-semibold text-aura-muted">Total POS Orders Logged</div>
-                <div className="text-3xl font-black text-aura-text">64,280</div>
-                <p className="text-[11px] text-emerald-600 font-semibold">Avg 0.4s sale execution time</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-1">
-                <div className="text-xs font-semibold text-aura-muted">Active Payment Volume</div>
-                <div className="text-3xl font-black text-aura-text">86.4% UPI</div>
-                <p className="text-[11px] text-aura-muted">10.2% Cash • 3.4% Khata Credit</p>
-              </div>
+            <div className="h-72 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={[
+                  { month: 'May', gmv: 85000, mrr: 28000, orders: 1200 },
+                  { month: 'Jun', gmv: 120000, mrr: 34000, orders: 1750 },
+                  { month: 'Jul', gmv: 165000, mrr: 39000, orders: 2300 },
+                  { month: 'Aug', gmv: 210000, mrr: 44000, orders: 3100 },
+                  { month: 'Sep', gmv: 296900, mrr: 48500, orders: 3850 },
+                ]}>
+                  <defs>
+                    <linearGradient id="gmvGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
+                  <XAxis dataKey="month" stroke="var(--text-muted)" fontSize={11} />
+                  <YAxis stroke="var(--text-muted)" fontSize={11} tickFormatter={v => `₹${v}`} />
+                  <Tooltip
+                    formatter={(v: any, name: any) => [`₹${v?.toLocaleString('en-IN')}`, name === 'gmv' ? 'Hotel GMV' : 'SaaS MRR']}
+                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', borderRadius: '12px', fontSize: '12px' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Area type="monotone" dataKey="gmv" name="Total Hotel Sales (GMV)" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#gmvGrad)" />
+                  <Area type="monotone" dataKey="mrr" name="Platform Subscription MRR" stroke="#10B981" strokeWidth={2} fillOpacity={0.2} fill="#10B981" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
 
-        {/* TAB 5: SYSTEM HEALTH & SLA */}
+        {/* ── TAB 6: SYSTEM & DB HEALTH & MAINTENANCE MODE ────────────────── */}
         {activeTab === 'system-health' && (
           <div className="space-y-6">
-            <div className="pb-4 border-b border-aura-border">
-              <h2 className="text-xl font-bold text-aura-text flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-500" />
-                <span>Cluster Vitals, MongoDB Connection & Microservices</span>
-              </h2>
-              <p className="text-xs text-aura-muted mt-1">
-                Infrastructure health telemetry, database connection pool, and zero-trust authentication services.
-              </p>
-            </div>
+            <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                    <span>Real-time Cluster Health & Maintenance Governance</span>
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Server nodes, database read/write latency, cache hit performance, and global maintenance lock.
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-4">
-                <h3 className="font-bold text-sm text-aura-text flex items-center gap-2">
-                  <Database className="w-4 h-4 text-emerald-500" />
-                  <span>Database & Engine Vitals</span>
-                </h3>
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">MongoDB Motor Connection Pool</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Active (40 / 100)</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">FastAPI Average Response Latency</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">14.2 ms</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">Redis Pub/Sub KDS Live Sync</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Connected</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setMaintenanceMode(!maintenanceMode);
+                      setSuccessToast(`Maintenance mode is now ${!maintenanceMode ? 'ENABLED (Platform Locked)' : 'DISABLED (Live)'}`);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                      maintenanceMode
+                        ? 'bg-red-600 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{maintenanceMode ? 'Maintenance Mode: ON' : 'Toggle Maintenance Mode'}</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-aura-card border border-aura-border space-y-4">
-                <h3 className="font-bold text-sm text-aura-text flex items-center gap-2">
-                  <Server className="w-4 h-4 text-blue-500" />
-                  <span>Service Level Agreement (SLA)</span>
-                </h3>
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">Core POS Billing Engine</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">100.0% Uptime</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">Kitchen Display Routing Service</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">99.99% Uptime</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-aura-dark/40">
-                    <span className="font-semibold text-aura-muted">JWT Auth & Multi-Tenant IDP</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Operational</span>
-                  </div>
+              {/* Telemetry Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[var(--border-subtle)]">
+                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">API Response Time</span>
+                  <p className="text-lg font-black text-emerald-600 mt-0.5">14 ms</p>
+                  <span className="text-[10px] text-[var(--text-muted)]">Optimal (p99: 32ms)</span>
                 </div>
+                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[var(--border-subtle)]">
+                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">MongoDB Latency</span>
+                  <p className="text-lg font-black text-emerald-600 mt-0.5">3.2 ms</p>
+                  <span className="text-[10px] text-[var(--text-muted)]">ReplicaSet synced</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[var(--border-subtle)]">
+                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Active WebSockets</span>
+                  <p className="text-lg font-black text-blue-600 mt-0.5">8 Channels</p>
+                  <span className="text-[10px] text-[var(--text-muted)]">KDS & Live Ops</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[var(--border-subtle)]">
+                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Memory Allocation</span>
+                  <p className="text-lg font-black text-slate-800 mt-0.5">512 MB / 2 GB</p>
+                  <span className="text-[10px] text-emerald-600 font-bold">25% (Healthy)</span>
+                </div>
+              </div>
+
+              {/* Maintenance Actions */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  onClick={() => setSuccessToast('⚡ Redis cache flushed successfully')}
+                  className="btn-secondary text-xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Flush Redis Cache</span>
+                </button>
+                <button
+                  onClick={() => setSuccessToast('📊 Database indexes re-optimized and compacted')}
+                  className="btn-secondary text-xs"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Optimize DB Indexes</span>
+                </button>
+                <button
+                  onClick={() => setSuccessToast('💾 Snapshot backup archive generated & encrypted')}
+                  className="btn-secondary text-xs"
+                >
+                  <HardDrive className="w-3.5 h-3.5" />
+                  <span>Generate Full DB Backup</span>
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 6: SECURITY & AUDIT LOGS */}
+        {/* ── TAB 7: SECURITY & AUDIT TRAIL ───────────────────────────────── */}
         {activeTab === 'audit-logs' && (
-          <div className="space-y-6">
-            <div className="pb-4 border-b border-aura-border">
-              <h2 className="text-xl font-bold text-aura-text flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                <span>Super Admin Audit Trail & Security Ledger</span>
-              </h2>
-              <p className="text-xs text-aura-muted mt-1">
-                Immutable record of tenant provisioning, credential resets, and permission grants.
+          <div className="p-5 rounded-2xl bg-white border border-[var(--border-subtle)] shadow-xs space-y-4">
+            <div className="pb-3 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[var(--color-primary)]" />
+                <span>Super Admin Audit Trail & Action Logs</span>
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                Cryptographically verifiable record of all administrative operations, logins, and permission changes.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-aura-border bg-aura-card overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-aura-border flex items-center justify-between">
-                <span className="text-xs font-bold text-aura-text">Recent Super Admin Actions</span>
-                <span className="text-[11px] text-aura-muted font-mono">Live Sync</span>
-              </div>
-              <div className="divide-y divide-aura-border text-xs">
-                <div className="p-3.5 flex items-center justify-between hover:bg-aura-dark/20">
-                  <div>
-                    <div className="font-bold text-aura-text">Provisioned Business: "Chai & Bun Maska Street Hub"</div>
-                    <div className="text-[11px] text-aura-muted">Granted Quick Sale POS + Khata Ledger • Created Admin karan@chaihub.com</div>
-                  </div>
-                  <span className="text-[10px] text-aura-muted font-mono">10 mins ago</span>
-                </div>
-
-                <div className="p-3.5 flex items-center justify-between hover:bg-aura-dark/20">
-                  <div>
-                    <div className="font-bold text-aura-text">Updated RBAC Controls: "Aura Fine Dining & Bistro"</div>
-                    <div className="text-[11px] text-aura-muted">Enabled Multi-Station KDS and Central Multi-Branch Sync</div>
-                  </div>
-                  <span className="text-[10px] text-aura-muted font-mono">35 mins ago</span>
-                </div>
-
-                <div className="p-3.5 flex items-center justify-between hover:bg-aura-dark/20">
-                  <div>
-                    <div className="font-bold text-aura-text">Super Admin Login Authenticated</div>
-                    <div className="text-[11px] text-aura-muted">IP 127.0.0.1 • TLS 256-bit Session Established for admin@aura.io</div>
-                  </div>
-                  <span className="text-[10px] text-aura-muted font-mono">1 hour ago</span>
-                </div>
-              </div>
+            <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAFC] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-bold">
+                  <tr>
+                    <th className="py-3 px-4">Event Type</th>
+                    <th className="py-3 px-4">Operator / Admin</th>
+                    <th className="py-3 px-4">Action Summary</th>
+                    <th className="py-3 px-4">IP Address</th>
+                    <th className="py-3 px-4 text-right">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)] bg-white">
+                  {[
+                    { action: 'PORTAL_ACCESS', admin: 'superadmin@aura.io', summary: "Masqueraded as Rajesh Sharma (Aura Bistro)", ip: '122.172.88.14', time: '5 mins ago' },
+                    { action: 'FEATURE_TOGGLE', admin: 'superadmin@aura.io', summary: "Enabled AI Copilot for Chai & Co Express", ip: '122.172.88.14', time: '22 mins ago' },
+                    { action: 'PLAN_UPGRADE', admin: 'superadmin@aura.io', summary: "Upgraded The Vintage Bakery to Professional Plan", ip: '122.172.88.14', time: '1 hour ago' },
+                    { action: 'BACKUP_CREATED', admin: 'SYSTEM_CRON', summary: "Automated incremental cluster backup completed", ip: '127.0.0.1', time: '3 hours ago' },
+                  ].map((log, i) => (
+                    <tr key={i} className="hover:bg-[#F8FAFC]">
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-blue-50 text-blue-700">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-[var(--text-primary)]">{log.admin}</td>
+                      <td className="py-3 px-4 text-[var(--text-secondary)]">{log.summary}</td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-[var(--text-muted)]">{log.ip}</td>
+                      <td className="py-3 px-4 text-right text-[var(--text-muted)]">{log.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
       </div>
 
-      {/* MODAL 1: Pristine Enterprise Tenant Permission & Feature Delegator */}
-      {selectedTenant && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-black text-base shadow-sm">
-                  {selectedTenant.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-zinc-900 dark:text-white flex items-center gap-2">
-                    <span>Delegate Admin Controls: {selectedTenant.name}</span>
-                  </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Super Admin master control & feature toggle matrix for <span className="font-mono">{selectedTenant.owner_email}</span>
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedTenant(null)}
-                className="w-8 h-8 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Core Metadata Configuration Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-700/60 text-xs">
-              <div>
-                <label className="font-semibold text-zinc-500 dark:text-zinc-400 block mb-1">Business Category</label>
-                <div className="font-bold text-zinc-900 dark:text-white text-sm">{selectedTenant.business_type}</div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-zinc-500 dark:text-zinc-400 block mb-1">Subscription Tier</label>
-                <select
-                  value={selectedTenant.plan}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant, plan: e.target.value as any })}
-                  className="w-full py-1.5 px-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-                >
-                  <option value="Starter">Starter (₹1,999/mo)</option>
-                  <option value="Professional">Professional (₹4,999/mo)</option>
-                  <option value="Enterprise">Enterprise (₹14,999/mo)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-zinc-500 dark:text-zinc-400 block mb-1">UI Complexity Level</label>
-                <select
-                  value={selectedTenant.ui_mode}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant, ui_mode: e.target.value as any })}
-                  className="w-full py-1.5 px-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-                >
-                  <option value="simple">Simple (Micro Stall / 2-Tap)</option>
-                  <option value="standard">Standard (Cafe / QSR)</option>
-                  <option value="advanced">Advanced (Multi-Station Chain)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Feature Granting Matrix */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  Feature Controls Given To Admin
-                </h4>
-                <span className="text-[10px] text-zinc-400 font-medium">Toggle to grant or revoke</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                
-                {/* 1. Quick Sale POS */}
-                <div 
-                  onClick={() => handleFeatureToggle('quick_sale')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.quick_sale ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <Zap className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Quick Sale POS Billing</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">2-tap micro fast billing</div>
-                    </div>
-                  </div>
-                  {/* Apple-style Toggle Switch */}
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.quick_sale ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.quick_sale ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 2. Tables & Floor Plan */}
-                <div 
-                  onClick={() => handleFeatureToggle('tables')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.tables ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Floor Plan & Tables</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Dine-in seat layout</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.tables ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.tables ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 3. Kitchen Display (KDS) */}
-                <div 
-                  onClick={() => handleFeatureToggle('kitchen_display')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.kitchen_display ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <ChefHat className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Kitchen Display (KDS)</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Station live ticket timers</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.kitchen_display ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.kitchen_display ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 4. Khata Ledger */}
-                <div 
-                  onClick={() => handleFeatureToggle('khata_credit')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.khata_credit ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Indian Khata & Credit</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Customer debt & WhatsApp bills</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.khata_credit ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.khata_credit ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 5. Recipe Costing & BOM */}
-                <div 
-                  onClick={() => handleFeatureToggle('recipes')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.recipes ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <Scale className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Recipe Costing & BOM</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Auto ingredient stock deduction</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.recipes ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.recipes ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 6. AI Copilot */}
-                <div 
-                  onClick={() => handleFeatureToggle('ai_features')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.ai_features ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">AI Operations Copilot</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Automated prep & sales forecast</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.ai_features ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.ai_features ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 7. QR Ordering */}
-                <div 
-                  onClick={() => handleFeatureToggle('qr_ordering')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.qr_ordering ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <QrCode className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Customer QR Ordering</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Self-order via smartphone</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.qr_ordering ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.qr_ordering ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-                {/* 8. Multi-Branch Chain Sync */}
-                <div 
-                  onClick={() => handleFeatureToggle('multi_branch')}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${selectedTenant.features.multi_branch ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400'}`}>
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-zinc-900 dark:text-white">Multi-Branch Chain Sync</div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Central menu & inventory ledger</div>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${selectedTenant.features.multi_branch ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <div className={`w-5 h-5 rounded-full shadow-sm transition-transform ${selectedTenant.features.multi_branch ? 'translate-x-4 bg-white dark:bg-zinc-950' : 'translate-x-0 bg-white dark:bg-zinc-400'}`} />
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Modal Actions Footer */}
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => handleToggleStatus(selectedTenant.id)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-              >
-                {selectedTenant.status === 'active' ? 'Freeze Business Access' : 'Unfreeze Business'}
-              </button>
-
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTenant(null)}
-                  className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveTenantControls}
-                  className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
-                >
-                  Save Controls & Apply
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: 1-Click Provision New Business */}
+      {/* ── MODAL: PROVISION NEW BUSINESS ─────────────────────────────────── */}
       {isProvisionModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in font-sans">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8 space-y-5 text-zinc-900 dark:text-white">
-            
-            <div className="flex items-center justify-between pb-3 border-b border-aura-border">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-base shadow-sm">
-                  <Plus className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-[var(--border-subtle)] shadow-2xl p-6 space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Building2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-zinc-900 dark:text-white">
-                    Provision New Food Business
-                  </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Instantly create tenant workspace and assign Admin credentials
-                  </p>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">Provision New Restaurant Tenant</h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">Initialize restaurant database, default menu catalog, and admin login.</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsProvisionModalOpen(false)}
-                className="w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
-              >
+              <button onClick={() => setIsProvisionModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleProvisionTenant} className="space-y-4 text-xs">
+            <form onSubmit={handleProvisionBusiness} className="space-y-3.5">
               <div>
-                <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                  Business / Restaurant Name
-                </label>
+                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Business Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Chai Express & Fast Bites"
-                  value={newTenant.name}
-                  onChange={(e) => setNewTenant({ ...newTenant, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+                  placeholder="e.g., Royal Biryani House"
+                  value={newBizName}
+                  onChange={e => setNewBizName(e.target.value)}
+                  className="input-base text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Business Category
-                  </label>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Business Type</label>
                   <select
-                    value={newTenant.business_type}
-                    onChange={(e) => setNewTenant({ ...newTenant, business_type: e.target.value as any })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none"
+                    value={newBizType}
+                    onChange={e => setNewBizType(e.target.value as any)}
+                    className="input-base text-xs font-semibold"
                   >
-                    <option value="Restaurant">Restaurant / Bistro</option>
-                    <option value="Cafe">Cafe & Coffee Bar</option>
-                    <option value="Juice Center">Juice Center</option>
-                    <option value="Tea Shop">Tea & Snack Stall</option>
-                    <option value="Bakery">Bakery & Pastry</option>
+                    <option value="Restaurant">Restaurant (Fine Dining)</option>
+                    <option value="Cafe">Cafe & Bistro</option>
                     <option value="Cloud Kitchen">Cloud Kitchen</option>
-                    <option value="Food Truck">Food Truck / Cart</option>
-                    <option value="Tiffin Center">Tiffin & Meals Center</option>
+                    <option value="Bakery">Bakery & Sweets</option>
+                    <option value="Quick Service">Quick Service / QSR</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Initial UI Complexity
-                  </label>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Plan Tier</label>
                   <select
-                    value={newTenant.ui_mode}
-                    onChange={(e) => setNewTenant({ ...newTenant, ui_mode: e.target.value as any })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none"
+                    value={newPlan}
+                    onChange={e => setNewPlan(e.target.value as any)}
+                    className="input-base text-xs font-semibold"
                   >
-                    <option value="simple">Simple (Micro Stall)</option>
-                    <option value="standard">Standard (Cafe/QSR)</option>
-                    <option value="advanced">Advanced (Chain)</option>
+                    <option value="Starter">Starter (₹999/mo)</option>
+                    <option value="Professional">Professional (₹2,499/mo)</option>
+                    <option value="Enterprise">Enterprise (₹5,999/mo)</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Admin Full Name
-                  </label>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Owner Full Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Ramesh Kumar"
-                    value={newTenant.owner_name}
-                    onChange={(e) => setNewTenant({ ...newTenant, owner_name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none"
+                    placeholder="e.g., Vikram Reddy"
+                    value={newOwnerName}
+                    onChange={e => setNewOwnerName(e.target.value)}
+                    className="input-base text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                    Admin Email (Login ID)
-                  </label>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Owner Email *</label>
                   <input
                     type="email"
                     required
-                    placeholder="ramesh@chai.io"
-                    value={newTenant.owner_email}
-                    onChange={(e) => setNewTenant({ ...newTenant, owner_email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none"
+                    placeholder="e.g., vikram@royalbiryani.in"
+                    value={newOwnerEmail}
+                    onChange={e => setNewOwnerEmail(e.target.value)}
+                    className="input-base text-xs"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="font-semibold text-zinc-700 dark:text-zinc-300 block mb-1">
-                  SaaS Plan Subscription
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['Starter', 'Professional', 'Enterprise'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setNewTenant({ ...newTenant, plan: p })}
-                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
-                        newTenant.plan === p
-                          ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-sm'
-                          : 'bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300'
-                      }`}
-                    >
-                      <div>{p}</div>
-                      <div className="text-[10px] font-normal opacity-70">
-                        {p === 'Starter' ? '₹1,999' : (p === 'Professional' ? '₹4,999' : '₹14,999')}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Instant Template Seeding
+                </p>
+                <p className="text-[11px] text-blue-700 leading-relaxed">
+                  The system will automatically seed 30+ categorized menu dishes, pricing templates, and floor tables for <strong>{newBizType}</strong>.
+                </p>
               </div>
 
-              <div className="pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsProvisionModalOpen(false)}
+                  className="btn-secondary text-xs"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-zinc-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  className="btn-primary text-xs font-bold shadow-md"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Provision Business & Grant Controls</span>
+                  Provision & Launch Restaurant
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
 
+      {/* ── MODAL: CONFIGURE FEATURES PER TENANT ─────────────────────────── */}
+      {isFeatureModalOpen && selectedTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-[var(--border-subtle)] shadow-2xl p-6 space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-sm font-black text-[var(--text-primary)]">
+                  Feature Controls: {selectedTenant.name}
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)]">Toggle modular capabilities for this restaurant account.</p>
+              </div>
+              <button onClick={() => setIsFeatureModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              {(Object.keys(selectedTenant.features) as Array<keyof ManagedTenant['features']>).map((fKey) => (
+                <div
+                  key={fKey}
+                  onClick={() => handleToggleFeature(selectedTenant.id, fKey)}
+                  className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-subtle)] bg-[#F8FAFC] hover:border-[var(--color-primary)] transition-all cursor-pointer"
+                >
+                  <span className="text-xs font-bold text-[var(--text-primary)] capitalize">
+                    {fKey.replace('_', ' ')}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    selectedTenant.features[fKey] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {selectedTenant.features[fKey] ? 'ENABLED' : 'DISABLED'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setIsFeatureModalOpen(false)}
+              className="btn-primary w-full text-xs font-bold mt-2"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: CHANGE PLAN TIER ──────────────────────────────────────── */}
+      {isPlanModalOpen && selectedTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-2xl border border-[var(--border-subtle)] shadow-2xl p-6 space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-sm font-black text-[var(--text-primary)]">
+                  Upgrade Plan: {selectedTenant.name}
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)]">Current Tier: <strong>{selectedTenant.plan}</strong></p>
+              </div>
+              <button onClick={() => setIsPlanModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {(['Starter', 'Professional', 'Enterprise'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => handleUpdatePlan(selectedTenant.id, p)}
+                  className={`w-full p-3.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    selectedTenant.plan === p
+                      ? 'border-[var(--color-primary)] bg-blue-50/50 shadow-xs'
+                      : 'border-[var(--border-subtle)] bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <span className="font-bold text-xs text-[var(--text-primary)] block">{p} Plan</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      {p === 'Starter' ? '₹999/mo • 1 Branch' : p === 'Professional' ? '₹2,499/mo • KDS & Inventory' : '₹5,999/mo • Unlimited + AI'}
+                    </span>
+                  </div>
+                  {selectedTenant.plan === p && <CheckCircle2 className="w-4 h-4 text-[var(--color-primary)]" />}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

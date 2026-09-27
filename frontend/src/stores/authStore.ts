@@ -16,6 +16,7 @@ interface AuthState {
   
   // Actions
   login: (email: string, pass: string) => Promise<boolean>;
+  impersonateTenant: (user: User, tenant: Tenant) => void;
   logout: () => void;
   setUiMode: (mode: UiMode) => void;
   setThemeMode: (mode: ThemeMode) => void;
@@ -70,6 +71,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return false;
     }
+  },
+
+  impersonateTenant: (user: User, tenant: Tenant) => {
+    localStorage.setItem('aura_tenant_id', tenant.id);
+    localStorage.setItem('aura_ui_mode', tenant.ui_mode || 'standard');
+    set({
+      user,
+      tenant,
+      branches: [{ id: 'br-01', name: 'Main Branch', code: 'MAIN', address: 'Main Location', city: 'Hyderabad', phone: '9999999999', table_count: 12 }],
+      activeBranchId: 'br-01',
+      uiMode: tenant.ui_mode || 'standard',
+    });
   },
 
   logout: () => {

@@ -6,7 +6,9 @@ import {
   Activity, 
   FileText, 
   Sliders, 
-  Server
+  Server,
+  Megaphone,
+  ShieldCheck
 } from 'lucide-react';
 
 export type SuperAdminTab = 
@@ -14,6 +16,7 @@ export type SuperAdminTab =
   | 'analytics' 
   | 'permissions' 
   | 'subscriptions' 
+  | 'broadcast'
   | 'system-health' 
   | 'audit-logs';
 
@@ -40,13 +43,20 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
       label: 'All Businesses',
       icon: Building2,
       badge: tenantsCount,
-      description: 'Directory & Add New'
+      description: 'Directory & Provision'
     },
     {
       id: 'permissions',
-      label: 'Feature Controls',
+      label: 'Feature Switchboard',
       icon: Sliders,
-      description: 'Manage Admin Access'
+      description: 'Live Feature Controls'
+    },
+    {
+      id: 'broadcast',
+      label: 'Global Broadcast',
+      icon: Megaphone,
+      badge: 'Live',
+      description: 'Alerts & Announcements'
     },
     {
       id: 'subscriptions',
@@ -56,22 +66,22 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
     },
     {
       id: 'analytics',
-      label: 'Platform Sales',
+      label: 'Platform Telemetry',
       icon: TrendingUp,
-      description: 'Total Revenue & Orders'
+      description: 'Total MRR & GMV'
     },
     {
       id: 'system-health',
-      label: 'System Status',
+      label: 'System & DB Health',
       icon: Activity,
       badge: '99.99%',
-      description: 'Server & Database'
+      description: 'Server & Maintenance'
     },
     {
       id: 'audit-logs',
-      label: 'Audit Logs',
+      label: 'Audit Trail',
       icon: FileText,
-      description: 'Admin Login History'
+      description: 'Security & Action Logs'
     }
   ];
 
