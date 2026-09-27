@@ -1,0 +1,38 @@
+:root {
+  /* Enterprise Light / High-Contrast B&W Design Tokens */
+  --bg-app: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F4F4F5;
+  --bg-surface-hover: #ECECEE;
+  --border-subtle: #E4E4E7;
+  --border-strong: #D4D4D8;
+  --text-primary: #18181B;
+  --text-secondary: #52525B;
+  --text-muted: #71717A;
+  --accent-black: #09090B;
+  --accent-blue: #2563EB;
+  --accent-emerald: #059669;
+  --accent-amber: #D97706;
+  --accent-rose: #E11D48;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-card-elevated: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.dark {
+  --bg-app: #09090B;
+  --bg-surface: #141417;
+  --bg-surface-subtle: #1C1C21;
+  --bg-surface-hover: #26262D;
+  --border-subtle: #27272A;
+  --border-strong: #3F3F46;
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --accent-black: #FFFFFF;
+  --accent-blue: #3B82F6;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-rose: #F43F5E;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  --shadow-card-elevated: 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+}

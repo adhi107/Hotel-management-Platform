@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: aura_mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: restaurant_os_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - aura_net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: aura_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - aura_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aura_backend
+    restart: always
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=restaurant_os_db
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+      - DEBUG=false
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - aura_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aura_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - aura_net
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  aura_net:
+    driver: bridge

@@ -1,0 +1,19 @@
+{
+  "short_name": "NOVAFOOD",
+  "name": "NOVAFOOD OS - Universal F&B Operating System",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%236C63FF'><rect width='512' height='512' rx='128' fill='%23080808'/><path d='M256 120L360 224H152L256 120zM152 288h208l-104 104-104-104z' fill='%236C63FF'/></svg>",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["business", "food", "productivity", "finance"],
+  "description": "Next-Generation Operating System for Street Food, Juice Stalls, Cafes, Cloud Kitchens & Enterprise Restaurant Groups."
+}
